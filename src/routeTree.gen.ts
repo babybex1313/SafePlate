@@ -16,6 +16,7 @@ import { Route as SubmitPostRouteImport } from './routes/submit-post'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as RoutePlannerRouteImport } from './routes/route-planner'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ProcessRepliesRouteImport } from './routes/process-replies'
 import { Route as PricingRouteImport } from './routes/pricing'
@@ -23,6 +24,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ListYourVenueRouteImport } from './routes/list-your-venue'
 import { Route as LegalRouteImport } from './routes/legal'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as FaqRouteImport } from './routes/faq'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ClaimRouteImport } from './routes/claim'
@@ -74,6 +76,11 @@ const RoutePlannerRoute = RoutePlannerRouteImport.update({
   path: '/route-planner',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProfileRoute = ProfileRouteImport.update({
   id: '/profile',
   path: '/profile',
@@ -107,6 +114,11 @@ const ListYourVenueRoute = ListYourVenueRouteImport.update({
 const LegalRoute = LegalRouteImport.update({
   id: '/legal',
   path: '/legal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FaqRoute = FaqRouteImport.update({
@@ -191,6 +203,7 @@ export interface FileRoutesByFullPath {
   '/claim': typeof ClaimRoute
   '/dashboard': typeof DashboardRoute
   '/faq': typeof FaqRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/legal': typeof LegalRoute
   '/list-your-venue': typeof ListYourVenueRoute
   '/login': typeof LoginRoute
@@ -198,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/pricing': typeof PricingRoute
   '/process-replies': typeof ProcessRepliesRoute
   '/profile': typeof ProfileRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/route-planner': typeof RoutePlannerRoute
   '/search': typeof SearchRoute
   '/signup': typeof SignupRoute
@@ -222,6 +236,7 @@ export interface FileRoutesByTo {
   '/claim': typeof ClaimRoute
   '/dashboard': typeof DashboardRoute
   '/faq': typeof FaqRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/legal': typeof LegalRoute
   '/list-your-venue': typeof ListYourVenueRoute
   '/login': typeof LoginRoute
@@ -229,6 +244,7 @@ export interface FileRoutesByTo {
   '/pricing': typeof PricingRoute
   '/process-replies': typeof ProcessRepliesRoute
   '/profile': typeof ProfileRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/route-planner': typeof RoutePlannerRoute
   '/search': typeof SearchRoute
   '/signup': typeof SignupRoute
@@ -254,6 +270,7 @@ export interface FileRoutesById {
   '/claim': typeof ClaimRoute
   '/dashboard': typeof DashboardRoute
   '/faq': typeof FaqRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/legal': typeof LegalRoute
   '/list-your-venue': typeof ListYourVenueRoute
   '/login': typeof LoginRoute
@@ -261,6 +278,7 @@ export interface FileRoutesById {
   '/pricing': typeof PricingRoute
   '/process-replies': typeof ProcessRepliesRoute
   '/profile': typeof ProfileRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/route-planner': typeof RoutePlannerRoute
   '/search': typeof SearchRoute
   '/signup': typeof SignupRoute
@@ -287,6 +305,7 @@ export interface FileRouteTypes {
     | '/claim'
     | '/dashboard'
     | '/faq'
+    | '/forgot-password'
     | '/legal'
     | '/list-your-venue'
     | '/login'
@@ -294,6 +313,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/process-replies'
     | '/profile'
+    | '/reset-password'
     | '/route-planner'
     | '/search'
     | '/signup'
@@ -318,6 +338,7 @@ export interface FileRouteTypes {
     | '/claim'
     | '/dashboard'
     | '/faq'
+    | '/forgot-password'
     | '/legal'
     | '/list-your-venue'
     | '/login'
@@ -325,6 +346,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/process-replies'
     | '/profile'
+    | '/reset-password'
     | '/route-planner'
     | '/search'
     | '/signup'
@@ -349,6 +371,7 @@ export interface FileRouteTypes {
     | '/claim'
     | '/dashboard'
     | '/faq'
+    | '/forgot-password'
     | '/legal'
     | '/list-your-venue'
     | '/login'
@@ -356,6 +379,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/process-replies'
     | '/profile'
+    | '/reset-password'
     | '/route-planner'
     | '/search'
     | '/signup'
@@ -381,6 +405,7 @@ export interface RootRouteChildren {
   ClaimRoute: typeof ClaimRoute
   DashboardRoute: typeof DashboardRoute
   FaqRoute: typeof FaqRoute
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   LegalRoute: typeof LegalRoute
   ListYourVenueRoute: typeof ListYourVenueRoute
   LoginRoute: typeof LoginRoute
@@ -388,6 +413,7 @@ export interface RootRouteChildren {
   PricingRoute: typeof PricingRoute
   ProcessRepliesRoute: typeof ProcessRepliesRoute
   ProfileRoute: typeof ProfileRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   RoutePlannerRoute: typeof RoutePlannerRoute
   SearchRoute: typeof SearchRoute
   SignupRoute: typeof SignupRoute
@@ -456,6 +482,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RoutePlannerRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/profile': {
       id: '/profile'
       path: '/profile'
@@ -503,6 +536,13 @@ declare module '@tanstack/react-router' {
       path: '/legal'
       fullPath: '/legal'
       preLoaderRoute: typeof LegalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/faq': {
@@ -632,6 +672,7 @@ const rootRouteChildren: RootRouteChildren = {
   ClaimRoute: ClaimRoute,
   DashboardRoute: DashboardRoute,
   FaqRoute: FaqRoute,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   LegalRoute: LegalRoute,
   ListYourVenueRoute: ListYourVenueRoute,
   LoginRoute: LoginRoute,
@@ -639,6 +680,7 @@ const rootRouteChildren: RootRouteChildren = {
   PricingRoute: PricingRoute,
   ProcessRepliesRoute: ProcessRepliesRoute,
   ProfileRoute: ProfileRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   RoutePlannerRoute: RoutePlannerRoute,
   SearchRoute: SearchRoute,
   SignupRoute: SignupRoute,

@@ -65,6 +65,7 @@ function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [showForgotEmailHelp, setShowForgotEmailHelp] = useState(false);
 
   // Check if already logged in — hard redirect to profile
   useEffect(() => {
@@ -185,17 +186,22 @@ function LoginPage() {
               </div>
 
               {/* Remember Me */}
-              <div className="flex items-center gap-2">
-                <input
-                  id="login-remember"
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-sky-500 focus:ring-sky-500 cursor-pointer dark:border-slate-600"
-                />
-                <label htmlFor="login-remember" className="text-sm text-slate-600 dark:text-slate-400 cursor-pointer select-none">
-                  Keep me logged in
-                </label>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <input
+                    id="login-remember"
+                    type="checkbox"
+                    checked={rememberMe}
+                    onChange={(e) => setRememberMe(e.target.checked)}
+                    className="h-4 w-4 rounded border-slate-300 text-sky-500 focus:ring-sky-500 cursor-pointer dark:border-slate-600"
+                  />
+                  <label htmlFor="login-remember" className="text-sm text-slate-600 dark:text-slate-400 cursor-pointer select-none">
+                    Keep me logged in
+                  </label>
+                </div>
+                <a href="/forgot-password" className="text-sm font-medium text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300">
+                  Forgot password?
+                </a>
               </div>
 
               {status === "error" && errorMsg && (
@@ -226,6 +232,25 @@ function LoginPage() {
                 Sign up
               </a>
             </p>
+
+            <p className="mt-3 text-center">
+              <button
+                type="button"
+                onClick={() => setShowForgotEmailHelp(!showForgotEmailHelp)}
+                className="text-sm font-medium text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 cursor-pointer"
+              >
+                Forgot your email?
+              </button>
+            </p>
+
+            {showForgotEmailHelp && (
+              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                Check your inbox for previous emails from SafePlate (<span className="font-medium">hello@safeplate.company</span>). If you still can&rsquo;t find your account, contact us at{" "}
+                <a href="mailto:hello@safeplate.company" className="font-semibold text-sky-600 hover:text-sky-700 dark:text-sky-400 dark:hover:text-sky-300">
+                  hello@safeplate.company
+                </a>.
+              </div>
+            )}
           </div>
         </div>
       </main>

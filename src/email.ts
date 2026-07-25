@@ -1060,3 +1060,64 @@ export async function sendDripFollowUp2({
     console.error("[SafePlate] Unexpected error sending drip follow-up #2:", err);
   }
 }
+
+// ─── Password Reset Email ──────────────────────────────────────────────
+
+/**
+ * Sends a password reset email with a secure link.
+ *
+ * Fire-and-forget (don't await) so the password reset request responds quickly.
+ */
+export async function sendPasswordResetEmail({
+  email,
+  resetLink,
+}: {
+  email: string;
+  resetLink: string;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.warn(
+      "[SafePlate] RESEND_API_KEY is not set — skipping password reset email.",
+    );
+    return;
+  }
+
+  const resend = new Resend(apiKey);
+
+  const content = `
+    <h1 style="font-size:22px;font-weight:700;color:${BRAND.headline};margin:0 0 16px 0;">
+      Reset your SafePlate password
+    </h1>
+
+    <p style="font-size:15px;line-height:1.6;color:${BRAND.body};margin:0 0 16px 0;">
+      You requested a password reset for your SafePlate account. Click the button below to set a new password.
+    </p>
+
+    ${emailButton("Reset Your Password →", resetLink)}
+
+    <p style="font-size:13px;line-height:1.6;color:${BRAND.footer};margin:0;">
+      This link will expire in 1 hour. If you didn&rsquo;t request this reset, you can safely ignore this email.
+    </p>`;
+
+  const html = wrapEmail(content);
+
+  try {
+    const { error } = await resend.emails.send({
+      from: "SafePlate <hello@safeplate.company>",
+      to: [email],
+      subject: "Reset your SafePlate password",
+      html,
+      track_opens: true,
+    });
+
+    if (error) {
+      console.error("[SafePlate] Failed to send password reset email:", error);
+      return;
+    }
+
+    console.log(`[SafePlate] Password reset email sent to ${email}`);
+  } catch (err) {
+    console.error("[SafePlate] Unexpected error sending password reset email:", err);
+  }
+}

@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { sql } from "~/db";
 import bcrypt from "bcryptjs";
+import { randomBytes } from "node:crypto";
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
@@ -301,5 +302,126 @@ export const updateUserName = createServerFn({ method: "POST" }).handler(
     await sql()`update users set name = ${name.trim()} where id = ${userId}`;
 
     return { success: true, name: name.trim() };
+  },
+);
+
+// ── Password Reset ────────────────────────────────────────────────────────────
+
+async function createPasswordResetTokensTable() {
+  await sql()`create table if not exists password_reset_tokens (
+    id serial primary key,
+    user_id integer not null references users(id),
+    token text not null unique,
+    expires_at timestamptz not null,
+    used boolean not null default false,
+    created_at timestamptz default now()
+  )`;
+}
+
+export const requestPasswordReset = createServerFn({ method: "POST" }).handler(
+  async ({ data }: { data: { email: string } }) => {
+    const { email } = data ?? {};
+    const normalizedEmail = email?.trim().toLowerCase();
+    if (!normalizedEmail) return { success: false, error: "Please enter your email address." };
+
+    await createUsersTable();
+    await createPasswordResetTokensTable();
+
+    const rows = await sql()`select id from users where email = ${normalizedEmail}`;
+
+    // Don't leak user existence — return success either way
+    if (rows.length === 0) {
+      // Small delay to mitigate timing attacks
+      await new Promise((r) => setTimeout(r, 200));
+      return { success: true };
+    }
+
+    const user = rows[0] as { id: number };
+    const token = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 3600000).toISOString();
+
+    await sql()`insert into password_reset_tokens (user_id, token, expires_at)
+      values (${user.id}, ${token}, ${expiresAt})`;
+
+    const SITE_URL = process.env.SITE_URL || "https://safeplate.company";
+    const resetLink = `${SITE_URL}/reset-password?token=${token}`;
+
+    // Fire-and-forget email — don't block the response
+    import("../email").then(
+      ({ sendPasswordResetEmail }) =>
+        sendPasswordResetEmail({ email: normalizedEmail, resetLink }),
+      () => {},
+    );
+
+    return { success: true };
+  },
+);
+
+export const validateResetToken = createServerFn({ method: "GET" }).handler(
+  async ({ data }: { data: { token: string } }) => {
+    const { token } = data ?? {};
+    if (!token) return { valid: false, error: "Reset token is required." };
+
+    await createPasswordResetTokensTable();
+
+    const rows = await sql()`select id, expires_at, used
+      from password_reset_tokens where token = ${token}`;
+
+    if (rows.length === 0) {
+      return { valid: false, error: "Invalid reset link." };
+    }
+
+    const resetToken = rows[0] as { id: number; expires_at: string; used: boolean };
+
+    if (resetToken.used) {
+      return { valid: false, error: "This reset link has already been used." };
+    }
+
+    if (new Date(resetToken.expires_at).getTime() < Date.now()) {
+      return { valid: false, error: "This reset link has expired. Please request a new one." };
+    }
+
+    return { valid: true };
+  },
+);
+
+export const resetPassword = createServerFn({ method: "POST" }).handler(
+  async ({ data }: { data: { token: string; newPassword: string } }) => {
+    const { token, newPassword } = data ?? {};
+    if (!token) return { success: false, error: "Reset token is required." };
+    if (!newPassword || newPassword.length < 6) {
+      return { success: false, error: "Password must be at least 6 characters." };
+    }
+
+    await createUsersTable();
+    await createPasswordResetTokensTable();
+
+    const rows = await sql()`select id, user_id, expires_at, used
+      from password_reset_tokens where token = ${token}`;
+
+    if (rows.length === 0) {
+      return { success: false, error: "Invalid or expired reset link." };
+    }
+
+    const resetToken = rows[0] as {
+      id: number;
+      user_id: number;
+      expires_at: string;
+      used: boolean;
+    };
+
+    if (resetToken.used) {
+      return { success: false, error: "This reset link has already been used." };
+    }
+
+    if (new Date(resetToken.expires_at).getTime() < Date.now()) {
+      return { success: false, error: "This reset link has expired. Please request a new one." };
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await sql()`update users set password_hash = ${passwordHash} where id = ${resetToken.user_id}`;
+    await sql()`update password_reset_tokens set used = true where id = ${resetToken.id}`;
+
+    return { success: true };
   },
 );
