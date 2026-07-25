@@ -311,6 +311,22 @@ const DIETARY_OPTIONS = [
 ];
 
 /* ------------------------------------------------------------------ */
+/*  Canonical city names (synced with city pages)                      */
+/* ------------------------------------------------------------------ */
+
+const CITY_MAP: Record<string, { city: string; state: string; label: string }> = {
+  austin: { city: "Austin", state: "TX", label: "Austin, TX" },
+  "st-louis": { city: "St. Louis", state: "MO", label: "St. Louis, MO" },
+  sarasota: { city: "Sarasota", state: "FL", label: "Sarasota, FL" },
+  chicago: { city: "Chicago", state: "IL", label: "Chicago, IL" },
+  dallas: { city: "Dallas", state: "TX", label: "Dallas, TX" },
+  denver: { city: "Denver", state: "CO", label: "Denver, CO" },
+  atlanta: { city: "Atlanta", state: "GA", label: "Atlanta, GA" },
+  nashville: { city: "Nashville", state: "TN", label: "Nashville, TN" },
+  portland: { city: "Portland", state: "OR", label: "Portland, OR" },
+};
+
+/* ------------------------------------------------------------------ */
 /*  Progress indicator                                                 */
 /* ------------------------------------------------------------------ */
 
@@ -783,13 +799,26 @@ function ListYourVenuePage() {
                     <label className="block text-sm font-medium text-slate-700 mb-1">
                       City <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
+                    <select
                       value={form.city}
-                      onChange={(e) => update("city", e.target.value)}
-                      className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none transition"
-                      placeholder="Austin"
-                    />
+                      onChange={(e) => {
+                        const selectedCity = e.target.value;
+                        update("city", selectedCity);
+                        // Auto-populate state from CITY_MAP
+                        const entry = Object.values(CITY_MAP).find(
+                          (c) => c.city === selectedCity,
+                        );
+                        if (entry) update("state", entry.state);
+                      }}
+                      className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 focus:border-sky-500 focus:ring-2 focus:ring-sky-100 outline-none transition"
+                    >
+                      <option value="">Select a city...</option>
+                      {Object.values(CITY_MAP).map((c) => (
+                        <option key={c.city} value={c.city}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-1">

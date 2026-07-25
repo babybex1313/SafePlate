@@ -202,7 +202,7 @@ export const searchRestaurants = createServerFn({ method: "GET" }).handler(
 
     // City filter — only when explicitly specified
     if (city?.trim()) {
-      conditions.push(`city = $${params.length + 1}`);
+      conditions.push(`city ilike $${params.length + 1}`);
       params.push(city.trim());
     }
 
@@ -1575,8 +1575,16 @@ export async function insertRestaurantFromSubmission(
   const hasIsolatedPrep = isDedicated ? true : data.colorCodedTools === "yes";
   const allergenTrainedStaff = isDedicated ? true : data.staffTraining === "yes";
 
+  // Map dietary needs to canonical allergen names
+  const mappedDietaryNeeds = data.dietaryNeeds.flatMap((need: string) => {
+    if (need === "Gluten-Free / Celiac-Safe") return ["Gluten"];
+    if (need === "Dairy-Free") return ["Dairy"];
+    if (need === "Peanut / Tree Nut-Free") return ["Peanuts", "Tree Nuts"];
+    if (need === "Shellfish-Free") return ["Shellfish"];
+    return [need];
+  });
   await sqlClient`insert into restaurants (
-    name, address, city, state, safety_tier,
+    name, address, city, state, cuisine_type, safety_tier,
     has_dedicated_fryer, has_isolated_prep, allergen_trained_staff,
     free_from, verified
   ) values (
@@ -1584,11 +1592,12 @@ export async function insertRestaurantFromSubmission(
     ${data.streetAddress.trim()},
     ${data.city.trim()},
     ${data.state.trim()},
+    'Recommended by community',
     ${data.assignedTier},
     ${hasDedicatedFryer},
     ${hasIsolatedPrep},
     ${allergenTrainedStaff},
-    ${data.dietaryNeeds},
+    ${mappedDietaryNeeds},
     false
   )`;
 
