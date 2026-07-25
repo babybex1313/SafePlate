@@ -416,6 +416,8 @@ function PremiumActivation() {
         const updatedUser = { ...user, premium_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() };
         setUser(updatedUser);
         setCachedUser(updatedUser);
+        // Persist email so premium status is recognized on other pages
+        localStorage.setItem("safeplate_email", user.email);
         // Clean up the URL so refresh doesn't re-trigger
         if (typeof window !== "undefined") {
           const url = new URL(window.location.href);

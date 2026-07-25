@@ -203,6 +203,8 @@ function ProfilePage() {
       if (u) {
         setCachedUser(u);
         setUser(u);
+        // Persist email for premium feature detection across pages
+        localStorage.setItem("safeplate_email", u.email);
         // Initialize allergens from user's selected_allergens
         if (u.selected_allergens?.length) {
           const mapped: Record<string, number> = { ...DEFAULT_ALLERGENS };
