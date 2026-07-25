@@ -30,6 +30,10 @@ import {
   rejectBlogPost,
   type BlogSubmission,
 } from "~/db/blog";
+import {
+  sendNewsletterBlast,
+  listSubscribers,
+} from "~/db/newsletter";
 import { getCurrentUser } from "~/db/auth";
 import { getSessionToken } from "~/session";
 
@@ -2063,7 +2067,7 @@ function AdminRestaurantsPage() {
   const initialLoadDone = useRef(false);
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<"restaurants" | "updates" | "alerts" | "tracking" | "drips" | "blog">("restaurants");
+  const [activeTab, setActiveTab] = useState<"restaurants" | "updates" | "alerts" | "tracking" | "drips" | "blog" | "newsletter">("restaurants");
 
   // Pending updates state
   const [pendingUpdates, setPendingUpdates] = useState<PendingUpdateItem[]>([]);
@@ -2541,6 +2545,17 @@ function AdminRestaurantsPage() {
               }`}
             >
               📧 Drips
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("newsletter")}
+              className={`rounded-lg px-5 py-2 text-sm font-semibold transition-all cursor-pointer ${
+                activeTab === "newsletter"
+                  ? "bg-white text-slate-800 shadow-sm"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              📬 Newsletter
             </button>
             <button
               type="button"
@@ -3276,6 +3291,9 @@ function AdminRestaurantsPage() {
           {activeTab === "drips" && (
             <DripsTab />
           )}
+{activeTab === "newsletter" && (
+            <NewsletterTab />
+          )}
           {/* BLOG SUBMISSIONS TAB */}
           {activeTab === "blog" && (
             <BlogSubmissionsTab
@@ -3311,6 +3329,252 @@ function AdminRestaurantsPage() {
       )}
     </div>
   );
+
+/* ------------------------------------------------------------------ */
+/*  Newsletter Tab                                                    */
+/* ------------------------------------------------------------------ */
+
+interface SubscriberRow {
+  id: number;
+  name: string;
+  email: string;
+  created_at: string;
+}
+
+function NewsletterTab() {
+  const [subscribers, setSubscribers] = useState<SubscriberRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sendState, setSendState] = useState<"idle" | "sending" | "done">("idle");
+  const [result, setResult] = useState<{ sent: number; failed: number; total: number; error?: string } | null>(null);
+
+  const fetchSubscribers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await listSubscribers();
+      setSubscribers(data as SubscriberRow[]);
+    } catch (err) {
+      console.error("Failed to load subscribers:", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSubscribers();
+  }, [fetchSubscribers]);
+
+  const handleSend = async () => {
+    setSending(true);
+    setSendState("sending");
+    setResult(null);
+    try {
+      const res = await sendNewsletterBlast({ data: { subject, body } });
+      setSendState("done");
+      setResult({
+        sent: (res as { sent: number }).sent ?? 0,
+        failed: (res as { failed: number }).failed ?? 0,
+        total: (res as { total: number }).total ?? 0,
+        error: (res as { error?: string }).error,
+      });
+    } catch (err) {
+      setSendState("done");
+      setResult({
+        sent: 0,
+        failed: 0,
+        total: 0,
+        error: err instanceof Error ? err.message : "Failed to send.",
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const formatDate = (dateStr: string) => {
+    try {
+      return new Date(dateStr).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="py-10 text-center">
+        <IconSpinner className="h-6 w-6 animate-spin text-sky-500 mx-auto" />
+        <p className="mt-3 text-sm text-slate-500">Loading subscribers...</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Compose form */}
+      <div className="mb-8 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="border-b border-slate-100 bg-slate-50/50 px-6 py-4">
+          <h3 className="text-lg font-semibold text-slate-800">📬 Compose Newsletter</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            This will send an individual email to each of the {subscribers.length} subscriber{subscribers.length !== 1 ? "s" : ""}.
+          </p>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          {/* Subject */}
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+              Subject Line
+            </label>
+            <input
+              type="text"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="e.g. SafePlate just launched in your city!"
+              disabled={sendState === "sending"}
+              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 shadow-sm transition-all focus:border-sky-400 focus:outline-none focus:ring-4 focus:ring-sky-500/15 disabled:opacity-50"
+            />
+          </div>
+
+          {/* Body */}
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+              Message Body
+            </label>
+            <textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={8}
+              placeholder="Write your newsletter content here..."
+              disabled={sendState === "sending"}
+              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 shadow-sm transition-all focus:border-sky-400 focus:outline-none focus:ring-4 focus:ring-sky-500/15 resize-y disabled:opacity-50"
+            />
+          </div>
+
+          {/* Preview */}
+          {body.trim() && sendState === "idle" && (
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">
+                👁️ Preview
+              </label>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">
+                  Subject: SafePlate — {subject || "(no subject)"}
+                </div>
+                <div className="prose prose-sm max-w-none text-slate-700 whitespace-pre-wrap text-sm leading-relaxed">
+                  {body}
+                </div>
+                <div className="mt-3 pt-3 border-t border-slate-200 text-xs text-slate-400">
+                  Sent from SafePlate &lt;hello@safeplate.company&gt;<br />
+                  Includes unsubscribe link in footer
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Sending state */}
+          {sendState === "sending" && (
+            <div className="py-6 text-center">
+              <IconSpinner className="h-8 w-8 animate-spin text-sky-500 mx-auto mb-3" />
+              <p className="text-sm font-medium text-slate-700">
+                Sending to {subscribers.length} subscriber{subscribers.length !== 1 ? "s" : ""}...
+              </p>
+            </div>
+          )}
+
+          {/* Result */}
+          {sendState === "done" && result && (
+            <div className={`rounded-lg px-4 py-3 text-sm font-medium ${
+              result.error
+                ? "bg-red-50 text-red-700 border border-red-200"
+                : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+            }`}>
+              {result.error ? (
+                <>❌ {result.error}</>
+              ) : (
+                <>✅ Sent to {result.sent} subscriber{result.sent !== 1 ? "s" : ""}{result.failed > 0 ? `, ${result.failed} failed` : ""}</>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        {sendState !== "sending" && (
+          <div className="border-t border-slate-100 px-6 py-4 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleSend}
+              disabled={!subject.trim() || !body.trim() || subscribers.length === 0}
+              className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-sky-600 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              Send to All Subscribers ({subscribers.length})
+            </button>
+            {sendState === "done" && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSendState("idle");
+                  setResult(null);
+                  setSubject("");
+                  setBody("");
+                }}
+                className="rounded-xl border border-slate-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-600 shadow-sm transition-all hover:bg-slate-50 active:scale-95 cursor-pointer"
+              >
+                Compose Another
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Subscriber list */}
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="border-b border-slate-100 bg-slate-50/50 px-6 py-4 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-slate-800">
+            👥 Subscribers
+          </h3>
+          <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-700">
+            {subscribers.length} total
+          </span>
+        </div>
+
+        {subscribers.length === 0 ? (
+          <div className="p-10 text-center">
+            <div className="text-4xl mb-3">📭</div>
+            <h3 className="text-lg font-semibold text-slate-700">No subscribers yet</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              When people sign up for the newsletter on the homepage, they'll appear here.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-left">
+                  <th className="px-5 py-3 font-semibold text-slate-600">Name</th>
+                  <th className="px-5 py-3 font-semibold text-slate-600">Email</th>
+                  <th className="px-5 py-3 font-semibold text-slate-600">Subscribed</th>
+                </tr>
+              </thead>
+              <tbody>
+                {subscribers.map((sub) => (
+                  <tr key={sub.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                    <td className="px-5 py-3 font-medium text-slate-800">{sub.name}</td>
+                    <td className="px-5 py-3 text-slate-600">{sub.email}</td>
+                    <td className="px-5 py-3 text-slate-500 text-xs">{formatDate(sub.created_at)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /*  Blog Submissions Tab                                              */

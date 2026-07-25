@@ -5,7 +5,7 @@ const SITE_URL =
 
 // ─── Shared layout helpers ───────────────────────────────────────────
 
-const BRAND = {
+export const BRAND = {
   primary: "#0ea5e9",
   headline: "#1e293b",
   body: "#475569",
@@ -38,7 +38,7 @@ function addUtmParams(url: string): string {
 }
 
 /** Wraps body content in the full branded email layout (header + content + footer). */
-function wrapEmail(content: string): string {
+export function wrapEmail(content: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
