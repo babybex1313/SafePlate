@@ -409,6 +409,8 @@ function PremiumActivation() {
       if (result.success) {
         setStatus("success");
         setMessage("✅ Premium activated! Enjoy your perks.");
+        // Persist email so premium status is recognized on other pages
+        localStorage.setItem("safeplate_email", user.email);
         // Clean up the URL so refresh doesn't re-trigger
         if (typeof window !== "undefined") {
           const url = new URL(window.location.href);

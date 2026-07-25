@@ -102,6 +102,9 @@ function LoginPage() {
         setSessionCookie(result.token, rememberMe);
         if (result.user) setCachedUser(result.user);
 
+        // Persist email for premium feature detection across pages
+        localStorage.setItem("safeplate_email", email.trim());
+
         const user = result.user;
 
         // Use hard redirect instead of router navigate for reliability
