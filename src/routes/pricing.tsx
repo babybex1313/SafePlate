@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect } from "react";
 import { ThemeToggle } from "~/components/ThemeToggle";
-import { getCurrentUser, upgradeToPremium } from "~/db/auth";
-import { getSessionToken, setCachedUser } from "~/session";
+import { getCurrentUser, upgradeToPremium, type AuthUser } from "~/db/auth";
+import { getSessionToken, setCachedUser, getCachedUser } from "~/session";
 
 export const Route = createFileRoute("/pricing")({
   head: () => ({
@@ -329,7 +329,7 @@ const pricingCards: PricingCard[] = [
     iconBg: "bg-emerald-100 dark:bg-emerald-900",
     iconColor: "text-emerald-600 dark:text-emerald-400",
     title: "Verified Badge",
-    price: "$49",
+    price: "$99",
     period: "one-time",
     features: [
       "We personally verify your kitchen protocols",
@@ -344,7 +344,7 @@ const pricingCards: PricingCard[] = [
     iconBg: "bg-sky-100 dark:bg-sky-900",
     iconColor: "text-sky-600 dark:text-sky-400",
     title: "Premium Profile",
-    price: "$4.99",
+    price: "$9.99",
     period: "/month",
     features: [
       "Save favorite restaurants",
@@ -362,31 +362,59 @@ const pricingCards: PricingCard[] = [
 /* ------------------------------------------------------------------ */
 
 function PremiumActivation() {
-  const [userId, setUserId] = useState<number | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState("");
 
+  // Detect post-payment redirect from Stripe
+  const isPostPayment =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("premium") === "activated";
+
   useEffect(() => {
+    const cached = getCachedUser();
+    if (cached) {
+      setUser(cached);
+      setLoading(false);
+      return;
+    }
     const token = getSessionToken();
     if (token) {
       getCurrentUser({ data: { token } }).then((u) => {
         if (u) {
           setCachedUser(u);
-          setUserId(u.id);
+          setUser(u);
         }
+        setLoading(false);
       });
+    } else {
+      setLoading(false);
     }
   }, []);
 
+  // Auto-activate for regular users returning from Stripe payment
+  useEffect(() => {
+    if (isPostPayment && user && user.role !== "admin" && status === "idle") {
+      handleActivate();
+    }
+  }, [user, isPostPayment]);
+
   const handleActivate = async () => {
-    if (!userId) return;
+    if (!user) return;
     setStatus("loading");
     setMessage("");
     try {
-      const result = await upgradeToPremium({ data: { userId } });
+      const result = await upgradeToPremium({ data: { userId: user.id } });
       if (result.success) {
         setStatus("success");
-        setMessage("Premium activated! Enjoy your perks. Refresh your profile to see the changes.");
+        setMessage("✅ Premium activated! Enjoy your perks.");
+        // Clean up the URL so refresh doesn't re-trigger
+        if (typeof window !== "undefined") {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("premium");
+          window.history.replaceState({}, "", url.toString());
+        }
       } else {
         setStatus("error");
         setMessage(result.error ?? "Something went wrong.");
@@ -397,28 +425,114 @@ function PremiumActivation() {
     }
   };
 
-  if (!userId) return null;
+  if (loading) return null;
 
+  // ── Not logged in ──────────────────────────────────────────────────────────
+  if (!user) {
+    return (
+      <div className="mt-10 rounded-2xl border-2 border-sky-200 bg-gradient-to-b from-sky-50/20 to-white p-6 text-center dark:border-sky-800 dark:from-sky-950/20 dark:to-slate-900">
+        <span className="text-2xl">💎</span>
+        <h3 className="mt-2 text-lg font-bold text-slate-800 dark:text-slate-100">
+          Unlock Premium Features
+        </h3>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          Sign up or log in first to activate your Premium Profile.
+        </p>
+        <a
+          href="/signup"
+          className="mt-4 inline-flex items-center gap-2 rounded-xl bg-sky-500 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-sky-600 active:scale-95"
+        >
+          Sign Up / Log In →
+        </a>
+      </div>
+    );
+  }
+
+  // ── Admin ──────────────────────────────────────────────────────────────────
+  if (user.role === "admin") {
+    return (
+      <div className="mt-10 rounded-2xl border-2 border-purple-200 bg-gradient-to-b from-purple-50/20 to-white p-6 text-center dark:border-purple-800 dark:from-purple-950/20 dark:to-slate-900">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-purple-100 px-3 py-1 text-xs font-semibold text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+          🔧 Admin — Free Premium
+        </span>
+        <h3 className="mt-3 text-lg font-bold text-slate-800 dark:text-slate-100">
+          Admin Premium Access
+        </h3>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+          As an admin, you get free access to all premium features.
+        </p>
+        <button
+          type="button"
+          onClick={handleActivate}
+          disabled={status === "loading" || status === "success"}
+          className="mt-4 inline-flex items-center gap-2 rounded-xl bg-purple-500 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-purple-600 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+        >
+          {status === "loading"
+            ? "Activating…"
+            : status === "success"
+              ? "✓ Activated!"
+              : "💎 Activate Premium (Free)"}
+        </button>
+        {message && (
+          <p
+            className={`mt-3 text-sm font-medium ${
+              status === "success"
+                ? "text-emerald-600 dark:text-emerald-400"
+                : "text-red-600 dark:text-red-400"
+            }`}
+          >
+            {message}
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  // ── Regular user (diner / restaurant_owner) ────────────────────────────────
   return (
     <div className="mt-10 rounded-2xl border-2 border-purple-200 bg-gradient-to-b from-purple-50/20 to-white p-6 text-center dark:border-purple-800 dark:from-purple-950/20 dark:to-slate-900">
       <span className="text-2xl">💎</span>
-      <h3 className="mt-2 text-lg font-bold text-slate-800 dark:text-slate-100">Already purchased Premium?</h3>
+      <h3 className="mt-2 text-lg font-bold text-slate-800 dark:text-slate-100">
+        Get Premium Profile
+      </h3>
       <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-        Click below to activate your Premium Profile subscription.
+        Unlock saved restaurants, advanced filtering, priority route planning,
+        and personalized alerts — all for a one-time payment.
       </p>
-      <button
-        type="button"
-        onClick={handleActivate}
-        disabled={status === "loading" || status === "success"}
-        className="mt-4 inline-flex items-center gap-2 rounded-xl bg-purple-500 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-purple-600 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
-      >
-        {status === "loading" ? "Activating…" : status === "success" ? "✓ Activated!" : "💎 Activate Premium"}
-      </button>
-      {message && (
-        <p className={`mt-3 text-sm font-medium ${status === "success" ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"}`}>
+
+      {status === "success" ? (
+        <>
+          <span className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-100 px-6 py-3 text-sm font-semibold text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
+            ✓ Activated!
+          </span>
+          {message && (
+            <p className="mt-3 text-sm font-medium text-emerald-600 dark:text-emerald-400">
+              {message}
+            </p>
+          )}
+        </>
+      ) : status === "loading" ? (
+        <span className="mt-4 inline-flex items-center gap-2 rounded-xl bg-purple-100 px-6 py-3 text-sm font-semibold text-purple-700 dark:bg-purple-900 dark:text-purple-300">
+          Activating your premium…
+        </span>
+      ) : (
+        <a
+          href="https://buy.stripe.com/6oU28rcWA6Fs6OVgdN8Ra04"
+          className="mt-4 inline-flex items-center gap-2 rounded-xl bg-purple-500 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-purple-600 active:scale-95"
+        >
+          💎 Get Premium — $9.99
+        </a>
+      )}
+
+      {status === "error" && message && (
+        <p className="mt-3 text-sm font-medium text-red-600 dark:text-red-400">
           {message}
         </p>
       )}
+
+      <p className="mt-3 text-xs text-slate-400 dark:text-slate-500">
+        Secure payment via Stripe. One-time charge, no subscription.
+      </p>
     </div>
   );
 }
