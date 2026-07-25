@@ -234,6 +234,27 @@ export const upgradeToPremium = createServerFn({ method: "POST" }).handler(
     await sql()`update users set premium_until = now() + interval '30 days'
       where id = ${userId}`;
 
+    // Also update user_profiles so premium status is visible to search/route-planner pages
+    // (those pages read from user_profiles, not users)
+    await sql()`create table if not exists user_profiles (
+      id serial primary key,
+      email text not null unique,
+      allergens jsonb not null default '{}'::jsonb,
+      premium_until timestamptz,
+      created_at timestamptz default now(),
+      updated_at timestamptz default now()
+    )`;
+
+    const userRows = await sql()`select email from users where id = ${userId}`;
+    if (userRows.length > 0) {
+      const email = (userRows[0] as { email: string }).email;
+      await sql()`insert into user_profiles (email, allergens, premium_until, updated_at)
+        values (${email}, '{}'::jsonb, now() + interval '30 days', now())
+        on conflict (email) do update set
+          premium_until = now() + interval '30 days',
+          updated_at = now()`;
+    }
+
     return { success: true };
   },
 );

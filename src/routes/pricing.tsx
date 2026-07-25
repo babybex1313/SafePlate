@@ -372,6 +372,9 @@ function PremiumActivation() {
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("premium") === "activated";
 
+  // Check if user is already premium (persists across reloads)
+  const isAlreadyPremium = user?.premium_until ? new Date(user.premium_until) > new Date() : false;
+
   useEffect(() => {
     const cached = getCachedUser();
     if (cached) {
@@ -395,7 +398,7 @@ function PremiumActivation() {
 
   // Auto-activate for regular users returning from Stripe payment
   useEffect(() => {
-    if (isPostPayment && user && user.role !== "admin" && status === "idle") {
+    if (isPostPayment && user && user.role !== "admin" && !isAlreadyPremium && status === "idle") {
       handleActivate();
     }
   }, [user, isPostPayment]);
@@ -409,6 +412,10 @@ function PremiumActivation() {
       if (result.success) {
         setStatus("success");
         setMessage("✅ Premium activated! Enjoy your perks.");
+        // Update cached user with new premium status so UI reflects immediately
+        const updatedUser = { ...user, premium_until: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() };
+        setUser(updatedUser);
+        setCachedUser(updatedUser);
         // Clean up the URL so refresh doesn't re-trigger
         if (typeof window !== "undefined") {
           const url = new URL(window.location.href);
@@ -461,18 +468,22 @@ function PremiumActivation() {
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           As an admin, you get free access to all premium features.
         </p>
-        <button
-          type="button"
-          onClick={handleActivate}
-          disabled={status === "loading" || status === "success"}
-          className="mt-4 inline-flex items-center gap-2 rounded-xl bg-purple-500 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-purple-600 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
-        >
-          {status === "loading"
-            ? "Activating…"
-            : status === "success"
-              ? "✓ Activated!"
+        {isAlreadyPremium || status === "success" ? (
+          <span className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-100 px-6 py-3 text-sm font-semibold text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
+            ✓ Premium Active
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={handleActivate}
+            disabled={status === "loading"}
+            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-purple-500 px-6 py-2.5 text-sm font-semibold text-white shadow-sm transition-all hover:bg-purple-600 active:scale-95 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+          >
+            {status === "loading"
+              ? "Activating…"
               : "💎 Activate Premium (Free)"}
-        </button>
+          </button>
+        )}
         {message && (
           <p
             className={`mt-3 text-sm font-medium ${
@@ -500,10 +511,10 @@ function PremiumActivation() {
         and personalized alerts — all for a one-time payment.
       </p>
 
-      {status === "success" ? (
+      {isAlreadyPremium || status === "success" ? (
         <>
           <span className="mt-4 inline-flex items-center gap-2 rounded-xl bg-emerald-100 px-6 py-3 text-sm font-semibold text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300">
-            ✓ Activated!
+            ✓ Premium Active
           </span>
           {message && (
             <p className="mt-3 text-sm font-medium text-emerald-600 dark:text-emerald-400">
