@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { searchRestaurants, getActiveAlerts, submitSafetyAlert, addCommunityRestaurant } from "~/db/restaurants";
+import { searchRestaurants, getActiveAlerts, submitSafetyAlert, addCommunityRestaurant, getDistinctCities } from "~/db/restaurants";
 import { getAllReviews, getAllDinerReviews, type ReviewRow, type DinerReviewRow } from "~/db/reviews";
 import { saveRestaurant, unsaveRestaurant, getSavedRestaurants, isRestaurantSaved, getProfile } from "~/db/profile";
 import { ThemeToggle } from "~/components/ThemeToggle";
@@ -494,6 +494,9 @@ function SearchPage() {
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [alertError, setAlertError] = useState<string | null>(null);
 
+  // Dynamic cities from DB (merged with hardcoded list)
+  const [allCities, setAllCities] = useState<{ value: string; label: string; slug: string }[]>([...CITIES]);
+
   // Suggest restaurant modal
   const [showSuggest, setShowSuggest] = useState(false);
   const [suggestName, setSuggestName] = useState("");
@@ -596,6 +599,21 @@ function SearchPage() {
   // On mount: fire immediately (no debounce) to show results fast
   useEffect(() => {
     fetchResults("", null, [], "");
+    // Fetch distinct cities from DB for dropdown
+    getDistinctCities().then((dbCities) => {
+      const featuredNames = new Set(CITIES.map((c) => c.value));
+      const extraCities = (dbCities as string[]).filter((c) => !featuredNames.has(c));
+      if (extraCities.length > 0) {
+        setAllCities((prev) => [
+          ...prev,
+          ...extraCities.map((c) => ({
+            value: c,
+            label: c,
+            slug: c.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+          })),
+        ]);
+      }
+    }).catch(() => {});
     // Load all reviews for display on cards
     getAllReviews().then((revs) => setAllReviews(revs as ReviewRow[])).catch(() => {});
     // Load all diner reviews with averages
@@ -677,7 +695,7 @@ function SearchPage() {
   }, [selectedTier, selectedFreeFrom, selectedCity, matchMode, fetchResults]);
 
   const currentCityLabel = selectedCity
-    ? (CITIES.find((c) => c.value === selectedCity)?.label ?? "All Cities")
+    ? (allCities.find((c) => c.value === selectedCity)?.label ?? "All Cities")
     : "all cities";
 
   const toggleTier = (tier: number) => {
@@ -894,7 +912,7 @@ function SearchPage() {
                 className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm transition-all focus:border-sky-400 focus:outline-none focus:ring-4 focus:ring-sky-500/15 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
               >
                 <option value="">All Cities</option>
-                {CITIES.map((city) => (
+                {allCities.map((city) => (
                   <option key={city.value} value={city.value}>
                     {city.label}
                   </option>
@@ -906,7 +924,7 @@ function SearchPage() {
             {selectedCity && (
             <div className="mt-3 text-center">
               <a
-                href={`/city/${CITIES.find((c) => c.value === selectedCity)?.slug ?? ""}`}
+                href={`/city/${allCities.find((c) => c.value === selectedCity)?.slug ?? ""}`}
                 className="text-sm font-medium text-sky-600 hover:text-sky-700 transition-colors dark:text-sky-400 dark:hover:text-sky-300"
               >
                 📖 View {selectedCity} dining guide &rarr;

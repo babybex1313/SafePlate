@@ -1317,6 +1317,16 @@ export const rejectUpdate = createServerFn({ method: "POST" }).handler(
   },
 );
 
+
+// ── Get all distinct cities (for city dropdowns across the site) ───────────
+
+export const getDistinctCities = createServerFn({ method: "GET" }).handler(
+  async () => {
+    await createRestaurantsTable(sql());
+    const rows = await sql()`SELECT DISTINCT city FROM restaurants ORDER BY city`;
+    return (rows as { city: string }[]).map((r) => r.city);
+  },
+);
 // ── Route Planner: find restaurants along a driving route ───────────────────
 
 interface RouteCity {
