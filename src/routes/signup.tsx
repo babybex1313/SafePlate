@@ -168,6 +168,9 @@ function SignupPage() {
         setSessionCookie(result.token);
         if (result.user) setCachedUser(result.user);
 
+        // Persist email for premium feature detection across pages
+        localStorage.setItem("safeplate_email", email.trim());
+
         // Route based on role
         if (role === "restaurant_owner") {
           navigate({ to: "/claim?from=signup" });
