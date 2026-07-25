@@ -1,4 +1,5 @@
 import { RestaurantMap, type MapRestaurant } from "~/components/RestaurantMap";
+import { sql } from "~/db";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState, useMemo } from "react";
 import { searchRestaurants } from "~/db/restaurants";
@@ -80,7 +81,20 @@ const TIERS = [
 export const Route = createFileRoute("/city/$citySlug")({
   loader: async ({ params }) => {
     const slug = params.citySlug;
-    const info = getCityInfo(slug);
+    let info = getCityInfo(slug);
+
+    // If not in hardcoded CITY_MAP, try looking up in the database
+    if (!info) {
+      const cityName = slug
+        .replace(/-/g, ' ')
+        .replace(/\b\w/g, (c: string) => c.toUpperCase());
+      const rows = await sql()`SELECT DISTINCT city FROM restaurants WHERE lower(city) = lower(${cityName}) LIMIT 1`;
+      if (rows.length > 0) {
+        const foundCity = (rows[0] as { city: string }).city;
+        info = { city: foundCity, state: "", label: foundCity };
+      }
+    }
+
     if (!info) {
       throw new Error("City not found");
     }

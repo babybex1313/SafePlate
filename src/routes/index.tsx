@@ -926,7 +926,7 @@ function Home() {
   const cityCount = loaderData?.counts?.cityCount ?? 0;
   const allRestaurants = loaderData?.allRestaurants ?? [];
 
-  // City slugs mapping for map pins
+  // City slugs mapping for map pins — hardcoded featured cities
   const citySlugs: Record<string, string> = {
     "Austin": "austin",
     "Atlanta": "atlanta",
@@ -937,6 +937,12 @@ function Home() {
     "Portland": "portland",
     "St. Louis": "st-louis",
     "Sarasota": "sarasota",
+  };
+
+  // Generate a URL slug for any city name (spaces -> hyphens, lowercase)
+  const getCitySlug = (city: string): string => {
+    if (citySlugs[city]) return citySlugs[city];
+    return city.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
   };
 
   // Group restaurants by city for the overview map
@@ -1017,21 +1023,50 @@ function Home() {
                 centerLng={-98.5795}
               />
               {/* City quick links */}
-              <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-                {Object.entries(cityMapData).map(([city, data]) => {
-                  const slug = citySlugs[city];
-                  return slug ? (
+              {(() => {
+                const entries = Object.entries(cityMapData);
+                const featured = entries.filter(([city]) => citySlugs[city]);
+                const others = entries.filter(([city]) => !citySlugs[city]);
+
+                const renderCityLink = ([city, data]: [string, { count: number }], isFeatured: boolean) => {
+                  const slug = getCitySlug(city);
+                  return (
                     <a
                       key={city}
                       href={`/city/${slug}`}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-sky-200 bg-white px-4 py-2 text-sm font-medium text-sky-600 shadow-sm transition-all hover:bg-sky-50 hover:border-sky-300 dark:border-sky-800 dark:bg-slate-800 dark:text-sky-400 dark:hover:bg-sky-950"
+                      className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium shadow-sm transition-all hover:bg-sky-50 hover:border-sky-300 dark:hover:bg-sky-950 ${
+                        isFeatured
+                          ? "border-sky-200 bg-white text-sky-600 dark:border-sky-800 dark:bg-slate-800 dark:text-sky-400"
+                          : "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400"
+                      }`}
                     >
                       📍 {city}
                       <span className="text-xs text-slate-400 dark:text-slate-500">({data.count})</span>
                     </a>
-                  ) : null;
-                })}
-              </div>
+                  );
+                };
+
+                return (
+                  <>
+                    {featured.length > 0 && (
+                      <div className="mt-6">
+                        <p className="text-sm font-semibold text-slate-500 mb-3 text-center dark:text-slate-400">⭐ Featured Cities</p>
+                        <div className="flex flex-wrap items-center justify-center gap-3">
+                          {featured.map((entry) => renderCityLink(entry, true))}
+                        </div>
+                      </div>
+                    )}
+                    {others.length > 0 && (
+                      <div className="mt-4">
+                        <p className="text-sm font-semibold text-slate-500 mb-3 text-center dark:text-slate-400">🗺️ More Cities</p>
+                        <div className="flex flex-wrap items-center justify-center gap-3">
+                          {others.map((entry) => renderCityLink(entry, false))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </section>
         )}
