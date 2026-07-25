@@ -6,10 +6,12 @@ import {
 } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { readFile } from "node:fs/promises";
-import React, { type ReactNode } from "react";
+import React, { type ReactNode, useState, useEffect } from "react";
 
 import appCss from "~/styles/app.css?url";
 import { ThemeToggle } from "~/components/ThemeToggle";
+import { getCurrentUser, type AuthUser } from "~/db/auth";
+import { getSessionToken } from "~/session";
 
 const getBusinessName = createServerFn({ method: "GET" }).handler(async () => {
   try {
@@ -81,6 +83,35 @@ function RootComponent() {
   );
 }
 
+function PremiumIndicator() {
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    const token = getSessionToken();
+    if (token) {
+      getCurrentUser({ data: { token } }).then((u) => {
+        setUser(u);
+        setChecked(true);
+      });
+    } else {
+      setChecked(true);
+    }
+  }, []);
+
+  // Don't render anything until we've checked (avoids flash)
+  // After checking, only show if premium is active
+  const isPremium = user?.premium_until ? new Date(user.premium_until) > new Date() : false;
+
+  if (!checked || !isPremium) return null;
+
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-900 dark:text-sky-300">
+      💎 Premium
+    </span>
+  );
+}
+
 function RootDocument({ children }: { children: ReactNode }) {
   const themeScript = `
     (function() {
@@ -107,6 +138,9 @@ function RootDocument({ children }: { children: ReactNode }) {
       </head>
       <body className="bg-white text-slate-800 dark:bg-slate-950 dark:text-slate-100">
         {children}
+        <div className="fixed top-4 right-5 z-[100]">
+          <PremiumIndicator />
+        </div>
         <div className="fixed bottom-5 right-5 z-[100]">
           <span className="inline-flex items-center justify-center rounded-full bg-white/90 shadow-lg backdrop-blur-sm dark:bg-slate-800/90 border border-slate-200 dark:border-slate-600">
             <ThemeToggle />
