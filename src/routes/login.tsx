@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect } from "react";
-import { getSessionToken, setSessionCookie, setCachedUser, getCachedUser } from "~/session";
+import { getSessionToken, setSessionCookie, setCachedUser, clearSession, clearCachedUser } from "~/session";
 import { ThemeToggle } from "~/components/ThemeToggle";
 
 export const Route = createFileRoute("/login")({
@@ -54,6 +54,38 @@ function NavBar() {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Session token validation                                          */
+/* ------------------------------------------------------------------ */
+
+// JWT format: header.body.signature (all base64url-encoded).
+// The body contains { userId, email, role, iat, exp }.
+function decodeBase64Url(str: string): string {
+  const base64 = str.replace(/-/g, "+").replace(/_/g, "/");
+  const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
+  const binary = atob(padded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+// Returns true only when the token is structurally valid and not expired.
+// exp (seconds, *1000 -> ms) takes precedence; tokens without exp fall back
+// to the same 7-day iat age check the server's verifyToken uses.
+function isTokenValid(token: string): boolean {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return false;
+    const payload = JSON.parse(decodeBase64Url(parts[1])) as Record<string, unknown>;
+    const nowSec = Date.now() / 1000;
+    if (typeof payload.exp === "number" && nowSec > payload.exp) return false;
+    if (typeof payload.iat === "number" && nowSec - payload.iat > 60 * 60 * 24 * 7) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /*  Login Form                                                        */
 /* ------------------------------------------------------------------ */
 
@@ -66,17 +98,21 @@ function LoginPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [showForgotEmailHelp, setShowForgotEmailHelp] = useState(false);
 
-  // Check if already logged in — hard redirect to profile
+  // Only redirect if there is a valid, non-expired session token.
+  // Cached user data is unreliable (can be stale) — never redirect based on it.
   useEffect(() => {
-    const cached = getCachedUser();
-    if (cached) {
+    const token = getSessionToken();
+    if (token && isTokenValid(token)) {
       window.location.href = "/profile";
       return;
     }
-    const token = getSessionToken();
+    // Token is missing, stale, or expired — clear it and stay on the login form
+    // so the user can actually log in again.
     if (token) {
-      window.location.href = "/profile";
+      console.info("[SafePlate login] stale or expired session token found — clearing it");
     }
+    clearSession();
+    clearCachedUser();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
