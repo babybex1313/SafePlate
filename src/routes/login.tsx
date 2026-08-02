@@ -1,6 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useEffect } from "react";
-import { login } from "~/db/auth";
 import { getSessionToken, setSessionCookie, setCachedUser, getCachedUser } from "~/session";
 import { ThemeToggle } from "~/components/ThemeToggle";
 
