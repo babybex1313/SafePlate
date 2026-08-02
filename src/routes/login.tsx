@@ -97,7 +97,12 @@ function LoginPage() {
     setErrorMsg("");
 
     try {
-      const result = await login({ data: { email: email.trim(), password } });
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+      const result = await response.json();
       if (result.success && result.token) {
         setSessionCookie(result.token, rememberMe);
         if (result.user) setCachedUser(result.user);
