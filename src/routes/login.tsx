@@ -80,7 +80,10 @@ function LoginPage() {
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
+    // Always prevent the browser's native form navigation, including if this
+    // handler runs before hydration has fully settled.
     e.preventDefault();
+    console.info("[SafePlate login] submitting", { email: email.trim() });
     if (!email.trim()) {
       setErrorMsg("Please enter your email address.");
       setStatus("error");
@@ -101,6 +104,7 @@ function LoginPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.trim(), password }),
       });
+      console.info("[SafePlate login] API response", { status: response.status, ok: response.ok });
       const result = await response.json();
       if (result.success && result.token) {
         setSessionCookie(result.token, rememberMe);
@@ -125,8 +129,10 @@ function LoginPage() {
         setErrorMsg(result.error ?? "Invalid email or password.");
         setStatus("error");
       }
-    } catch {
-      setErrorMsg("Something went wrong. Please try again.");
+    } catch (error) {
+      console.error("[SafePlate login] request failed", error);
+      const message = error instanceof Error ? error.message : String(error);
+      setErrorMsg(`Login request failed: ${message}`);
       setStatus("error");
     }
   };
