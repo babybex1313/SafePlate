@@ -48,7 +48,7 @@ async function hmacSign(data: string, secret: string): Promise<string> {
   return base64urlEncode(String.fromCharCode(...new Uint8Array(sig)));
 }
 
-async function createToken(payload: Record<string, unknown>): Promise<string> {
+export async function createToken(payload: Record<string, unknown>): Promise<string> {
   const header = base64urlEncode(JSON.stringify({ alg: "HS256", typ: "JWT" }));
   const body = base64urlEncode(JSON.stringify({ ...payload, iat: Math.floor(Date.now() / 1000) }));
   const signature = await hmacSign(`${header}.${body}`, AUTH_SECRET);

@@ -11,6 +11,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import handler from "./dist/server/server.js";
+import { POST as loginApiPost, OPTIONS as loginApiOptions } from "./src/routes/api/auth/login";
 
 const fetchHandler = handler as {
   fetch: (request: Request) => Response | Promise<Response>;
@@ -42,7 +43,18 @@ export default async function vercelHandler(
   res: ServerResponse,
 ): Promise<void> {
   try {
-    const webRes = await fetchHandler.fetch(toWebRequest(req));
+    const webRequest = toWebRequest(req);
+    const pathname = new URL(webRequest.url).pathname;
+    const webRes = pathname === "/api/auth/login"
+      ? webRequest.method === "OPTIONS"
+        ? loginApiOptions()
+        : webRequest.method === "POST"
+          ? await loginApiPost({ request: webRequest })
+          : new Response(JSON.stringify({ success: false, error: "Method not allowed." }), {
+              status: 405,
+              headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+            })
+      : await fetchHandler.fetch(webRequest);
     res.statusCode = webRes.status;
     webRes.headers.forEach((value, key) => res.setHeader(key, value));
     if (webRes.body) {
